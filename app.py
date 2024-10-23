@@ -1,96 +1,99 @@
 import streamlit as st
 import pandas as pd
 import datetime
-import os
+import requests
 import matplotlib.pyplot as plt
+
+# Wprowadź swój klucz API
+API_KEY = "AIzaSyBXPrN5wOlA_dNJWVHf320jDuogcZLVEhk"
+SPREADSHEET_ID = "17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8"  # ID Twojego arkusza
 
 
 # Funkcja do zapisywania wyborów użytkownika
 def save_user_selection(selected_dates, login):
     formatted_dates = [date.strftime('%Y-%m-%d') for date in selected_dates]
-    new_data = pd.DataFrame({
-        'login': [login],
-        'dates': [','.join(formatted_dates)]
-    })
+    data = {
+        "values": [[login, ','.join(formatted_dates)]]
+    }
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}/values/Sheet1!A1:append?valueInputOption=USER_ENTERED&key={API_KEY}"
 
-    # Sprawdzenie, czy plik już istnieje
-    if os.path.exists('user_selections.csv'):
-        new_data.to_csv('user_selections.csv', mode='a', header=False, index=False)
+    response = requests.post(url, json=data)
+
+    if response.status_code == 200:
+        st.success("Twój wybór został zapisany!")
     else:
-        new_data.to_csv('user_selections.csv', index=False)
+        st.error("Wystąpił problem podczas zapisywania wyboru.")
 
 
 # Funkcja do wczytywania wyborów użytkownika
 def load_user_selection(login):
-    if os.path.exists('user_selections.csv'):
-        df = pd.read_csv('user_selections.csv')
-        user_data = df[df['login'] == login]
-        if not user_data.empty:
-            dates_str = user_data['dates'].values[0]
-            return [datetime.datetime.strptime(date, '%Y-%m-%d').date() for date in dates_str.split(',')]
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}/values/Sheet1?key={API_KEY}"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+        rows = data.get("values", [])
+        for row in rows:
+            if row[0] == login:  # Zakładamy, że login jest w pierwszej kolumnie
+                dates_str = row[1]  # A daty w drugiej
+                return [datetime.datetime.strptime(date, '%Y-%m-%d').date() for date in dates_str.split(',')]
     return []
 
 
-# Wczytanie poniższych danych
+# Twoja pozostała logika aplikacji
 st.title("Impreza integracyjna kursu Data Scientist")
 
 # Sidebar do logowania i wyboru dni
 with st.sidebar:
-    st.header("Logowanie i wybór dni")
+    st.header("Logowanie i wybór dni:")
 
     login = st.text_input("Podaj swój login z Discorda:")
 
-    # Zmienna sesji dla zaznaczenia poprzednich wyborów
-    if 'previous_selection' not in st.session_state:
-        st.session_state.previous_selection = None
-
     if st.button("Zaloguj"):
-        if login:  # Zmiana na sprawdzenie loginu
+        if login:
             st.session_state['authenticated'] = True
-
-            # Resetowanie wcześniejszych wyborów przy nowym logowaniu
-            st.session_state.previous_selection = []  # Resetujemy poprzedni wybór
-            st.session_state.previous_selection = load_user_selection(login)  # Wczytaj wcześniej dokonane wybory
+            st.session_state.previous_selection = load_user_selection(login)
             st.success("Zalogowano! Możesz kontynuować.")
         else:
             st.session_state['authenticated'] = False
             st.error("Proszę podać login!")
 
     if 'authenticated' in st.session_state and st.session_state['authenticated']:
-        # Zakres dat
         start_date = datetime.date(2024, 11, 1)
         end_date = datetime.date(2024, 12, 15)
-
-        # Generowanie dni piątków i sobót w danym zakresie
         available_days = pd.date_range(start_date, end_date)
-        available_days = [date for date in available_days if date.weekday() in [4, 5]]  # 4 = piątek, 5 = sobota
+        available_days = [date for date in available_days if date.weekday() in [4, 5]]
 
-        # Umożliwienie wyboru dni spotkania
         selected_dates = st.multiselect(
             "Wybierz dni spotkań (Piątki i Soboty):",
             options=available_days,
-            default=[],  # Upewniamy się, że nowe wybory są puste
+            default=[],
             format_func=lambda x: f"{x.strftime('%Y-%m-%d')} ({'pt' if x.weekday() == 4 else 'sb'})"
         )
 
         if st.button("Zapisz wybór"):
             save_user_selection(selected_dates, login)
-            st.success("Twój wybór został zapisany!")
 
 # Wykres na głównym ekranie
-st.header("")
+st.header("Liczba chętnych w wybrane dni")
 
-if os.path.exists('user_selections.csv'):
-    selections_df = pd.read_csv('user_selections.csv')
+url = f"https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}/values/Sheet1?key={API_KEY}"
+response = requests.get(url)
+
+if response.status_code == 200:
+    data = response.json()
+    rows = data.get("values", [])
+
+    df = pd.DataFrame(rows[1:], columns=rows[0])  # Zakładamy, że pierwszy wiersz to nagłówki
 
     # Przekształcamy kolumnę z datami w formacie tekstowym na listę dat
-    selections_df['dates'] = selections_df['dates'].apply(lambda x: x.split(',') if isinstance(x, str) else [])
+    df['dates'] = df['dates'].apply(lambda x: x.split(',') if isinstance(x, str) else [])
 
     # Usunąć puste rekordy
-    selections_df = selections_df[selections_df['dates'].astype(bool)]
+    df = df[df['dates'].astype(bool)]
 
     # Rozbijamy daty na jedną kolumnę
-    selections_count = selections_df.explode('dates').groupby('dates').size().reset_index(name='count')
+    selections_count = df.explode('dates').groupby('dates').size().reset_index(name='count')
 
     # Konwersja dat na datetime
     selections_count['dates'] = pd.to_datetime(selections_count['dates'], format='%Y-%m-%d', errors='coerce')
@@ -103,9 +106,7 @@ if os.path.exists('user_selections.csv'):
 
     # Stworzenie wykresu
     fig, ax = plt.subplots(figsize=(10, 5))
-
-    # Rysowanie słupków z kolorami
-    bar = ax.bar(selections_count['dates'].dt.strftime('%Y-%m-%d'), selections_count['count'], color=selections_count['color'])
+    ax.bar(selections_count['dates'].dt.strftime('%Y-%m-%d'), selections_count['count'], color=selections_count['color'])
 
     plt.title('Liczba chętnych w wybrane dni')
     plt.xlabel('Data')
