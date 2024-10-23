@@ -5,8 +5,8 @@ import requests
 import matplotlib.pyplot as plt
 
 # Wprowadź swój klucz API
-API_KEY = "AIzaSyBXPrN5wOlA_dNJWVHf320jDuogcZLVEhk"
-SPREADSHEET_ID = "17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8"  # ID Twojego arkusza
+# API_KEY = "AIzaSyBXPrN5wOlA_dNJWVHf320jDuogcZLVEhk"
+# SPREADSHEET_ID = "17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8"  # ID Twojego arkusza
 
 
 # Funkcja do zapisywania wyborów użytkownika
@@ -15,7 +15,7 @@ def save_user_selection(selected_dates, login):
     data = {
         "values": [[login, ','.join(formatted_dates)]]
     }
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}/values/Sheet1!A1:append?valueInputOption=USER_ENTERED&key={API_KEY}"
+    url = "https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?gid=0#gid=0"
 
     response = requests.post(url, json=data)
 
@@ -27,7 +27,8 @@ def save_user_selection(selected_dates, login):
 
 # Funkcja do wczytywania wyborów użytkownika
 def load_user_selection(login):
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}/values/Sheet1?key={API_KEY}"
+    url = "https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?gid=0#gid=0"
+
     response = requests.get(url)
 
     if response.status_code == 200:
