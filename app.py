@@ -6,7 +6,15 @@ from streamlit_gsheets import GSheetsConnection
 
 # Tworzenie obiektu połączenia z GSheets
 spreadsheet_url = 'https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?usp=sharing'
-conn = GSheetsConnection(spreadsheet_url)
+
+try:
+    conn = GSheetsConnection(spreadsheet_url)
+    # Test nawiązania połączenia
+    df_test = conn.read()
+    print("Połączenie z GSheets nawiązane pomyślnie.")
+    print(df_test)  # Jeśli chcesz zobaczyć testowe dane
+except Exception as e:
+    print(f"Error while trying to connect to GSheets: {e}")
 
 
 def load_data():
