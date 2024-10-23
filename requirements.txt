@@ -6,3 +6,4 @@ matplotlib
 openai==1.47.0
 pydantic==2.9.2
 pydantic_core==2.23.4
+st-gsheets-connection

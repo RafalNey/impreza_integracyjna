@@ -1,59 +1,41 @@
 import streamlit as st
 import pandas as pd
 import datetime
-import requests
 import matplotlib.pyplot as plt
+from streamlit_gsheets import GSheetsConnection
 
-# Wprowadź swój klucz API
-# API_KEY = "AIzaSyBXPrN5wOlA_dNJWVHf320jDuogcZLVEhk"
-# SPREADSHEET_ID = "17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8"  # ID Twojego arkusza
+# Tworzenie obiektu połączenia z GSheets
+conn = st.connection("gsheets", type=GSheetsConnection, token="your_gsheets_token.json")
+spreadsheet_url = 'https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?usp=sharing'
 
 
-# Funkcja do zapisywania wyborów użytkownika
+def load_data():
+    # Wczytanie wszystkich danych z arkusza
+    df = conn.read(spreadsheet_url)
+    return df
+
+
 def save_user_selection(selected_dates, login):
-    formatted_dates = [date.strftime('%Y-%m-%d') for date in selected_dates]
     data = {
-        "values": [[login, ','.join(formatted_dates)]]
+        "dates": ','.join([date.strftime('%Y-%m-%d') for date in selected_dates]),
+        "login": login
     }
-    url = "https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?gid=0#gid=0"
 
-    response = requests.post(url, json=data)
-
-    if response.status_code == 200:
-        st.success("Twój wybór został zapisany!")
-    else:
-        st.error("Wystąpił problem podczas zapisywania wyboru.")
+    conn.write(data)  # Zakładamy, że istnieje metoda do zapisu
 
 
-# Funkcja do wczytywania wyborów użytkownika
-def load_user_selection(login):
-    url = "https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?gid=0#gid=0"
-
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        data = response.json()
-        rows = data.get("values", [])
-        for row in rows:
-            if row[0] == login:  # Zakładamy, że login jest w pierwszej kolumnie
-                dates_str = row[1]  # A daty w drugiej
-                return [datetime.datetime.strptime(date, '%Y-%m-%d').date() for date in dates_str.split(',')]
-    return []
-
-
-# Twoja pozostała logika aplikacji
+# Logika aplikacji
 st.title("Impreza integracyjna kursu Data Scientist")
 
 # Sidebar do logowania i wyboru dni
 with st.sidebar:
     st.header("Logowanie i wybór dni:")
-
     login = st.text_input("Podaj swój login z Discorda:")
 
     if st.button("Zaloguj"):
         if login:
             st.session_state['authenticated'] = True
-            st.session_state.previous_selection = load_user_selection(login)
+            st.session_state.previous_selection = load_data()
             st.success("Zalogowano! Możesz kontynuować.")
         else:
             st.session_state['authenticated'] = False
@@ -78,44 +60,25 @@ with st.sidebar:
 # Wykres na głównym ekranie
 st.header("Liczba chętnych w wybrane dni")
 
-url = "https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?gid=0#gid=0"
-response = requests.get(url)
+df = load_data()
 
-if response.status_code == 200:
-    data = response.json()
-    rows = data.get("values", [])
+# Przekształć dane i stwórz wykres
+df['dates'] = df['dates'].apply(lambda x: x.split(',') if isinstance(x, str) else [])
+df = df[df['dates'].astype(bool)]
+selections_count = df.explode('dates').groupby('dates').size().reset_index(name='count')
+selections_count['dates'] = pd.to_datetime(selections_count['dates'], format='%Y-%m-%d', errors='coerce')
+selections_count = selections_count[selections_count['dates'].notna()]
+selections_count['color'] = selections_count['dates'].apply(lambda x: 'yellow' if x.weekday() == 4 else 'green')
 
-    df = pd.DataFrame(rows[1:], columns=rows[0])  # Zakładamy, że pierwszy wiersz to nagłówki
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.bar(selections_count['dates'].dt.strftime('%Y-%m-%d'), selections_count['count'], color=selections_count['color'])
 
-    # Przekształcamy kolumnę z datami w formacie tekstowym na listę dat
-    df['dates'] = df['dates'].apply(lambda x: x.split(',') if isinstance(x, str) else [])
+plt.title('Liczba chętnych w wybrane dni')
+plt.xlabel('Data')
+plt.ylabel('Liczba użytkowników')
+plt.xticks(rotation=90)
 
-    # Usunąć puste rekordy
-    df = df[df['dates'].astype(bool)]
-
-    # Rozbijamy daty na jedną kolumnę
-    selections_count = df.explode('dates').groupby('dates').size().reset_index(name='count')
-
-    # Konwersja dat na datetime
-    selections_count['dates'] = pd.to_datetime(selections_count['dates'], format='%Y-%m-%d', errors='coerce')
-
-    # Usuwamy nieprawidłowe daty
-    selections_count = selections_count[selections_count['dates'].notna()]
-
-    # Przypisanie kolorów dla piątków i sobót
-    selections_count['color'] = selections_count['dates'].apply(lambda x: 'yellow' if x.weekday() == 4 else 'green')
-
-    # Stworzenie wykresu
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(selections_count['dates'].dt.strftime('%Y-%m-%d'), selections_count['count'], color=selections_count['color'])
-
-    plt.title('Liczba chętnych w wybrane dni')
-    plt.xlabel('Data')
-    plt.ylabel('Liczba użytkowników')
-    plt.xticks(rotation=90)
-
-    # Wyświetlenie wykresu
-    st.pyplot(fig)
+st.pyplot(fig)
 
 st.sidebar.header("Informacje")
 st.sidebar.write("Proszę podać swój login z Discorda i wybrać dni, które Ci odpowiadają.")
