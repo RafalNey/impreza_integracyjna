@@ -1,0 +1,11 @@
+instructor
+plotly
+streamlit
+pandas
+pyaudio
+openai==1.47.0
+pydantic==2.9.2
+pycaret
+python-dotenv
+streamlit-audiorecorder
+pydantic_core==2.23.4
