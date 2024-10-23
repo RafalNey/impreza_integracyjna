@@ -78,7 +78,7 @@ with st.sidebar:
 # Wykres na głównym ekranie
 st.header("Liczba chętnych w wybrane dni")
 
-url = f"https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}/values/Sheet1?key={API_KEY}"
+url = "https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?gid=0#gid=0"
 response = requests.get(url)
 
 if response.status_code == 200:
