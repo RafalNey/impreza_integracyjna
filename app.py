@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 from streamlit_gsheets import GSheetsConnection
 
 # Tworzenie obiektu połączenia z GSheets
-conn = st.connection("gsheets", type=GSheetsConnection, token="your_gsheets_token.json")
 spreadsheet_url = 'https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?usp=sharing'
+conn = GSheetsConnection(spreadsheet_url)
 
 
 def load_data():
     # Wczytanie wszystkich danych z arkusza
-    df = conn.read(spreadsheet_url)
+    df = conn.read()
     return df
 
 
@@ -20,7 +20,6 @@ def save_user_selection(selected_dates, login):
         "dates": ','.join([date.strftime('%Y-%m-%d') for date in selected_dates]),
         "login": login
     }
-
     conn.write(data)  # Zakładamy, że istnieje metoda do zapisu
 
 
