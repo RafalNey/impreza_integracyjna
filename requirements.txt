@@ -2,7 +2,6 @@ plotly
 streamlit
 pandas
 datetime
-os
 matplotlib
 openai==1.47.0
 pydantic==2.9.2
