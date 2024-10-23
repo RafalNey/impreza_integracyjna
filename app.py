@@ -5,30 +5,54 @@ import matplotlib.pyplot as plt
 from streamlit_gsheets import GSheetsConnection
 
 # Tworzenie obiektu połączenia z GSheets
-spreadsheet_url = 'https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?usp=sharing'
-
-try:
-    conn = GSheetsConnection(spreadsheet_url)
-    # Test nawiązania połączenia
-    df_test = conn.read()
-    print("Połączenie z GSheets nawiązane pomyślnie.")
-    print(df_test)  # Jeśli chcesz zobaczyć testowe dane
-except Exception as e:
-    print(f"Error while trying to connect to GSheets: {e}")
-
+spreadsheet_id = '17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8'  # Użyj tylko ID arkuša
+conn = GSheetsConnection(spreadsheet_id)  # Użyj samego ID, nie pełnego URL
 
 def load_data():
-    # Wczytanie wszystkich danych z arkusza
-    df = conn.read()
-    return df
+    try:
+        # Wczytanie wszystkich danych z arkusza
+        df = conn.read()
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()  # Zwraca pusty DataFrame w przypadku błędu
 
-
+# Zmodyfikowana funkcja zapisu
 def save_user_selection(selected_dates, login):
     data = {
         "dates": ','.join([date.strftime('%Y-%m-%d') for date in selected_dates]),
         "login": login
     }
-    conn.write(data)  # Zakładamy, że istnieje metoda do zapisu
+    try:
+        conn.write(data)  # Dodaj do zapisu
+    except Exception as e:
+        st.error(f"Error saving data: {e}")
+
+# # Tworzenie obiektu połączenia z GSheets
+# spreadsheet_url = 'https://docs.google.com/spreadsheets/d/17sPxX_NoRy7dg5qqw_EAKgYXktcuVtW7-COHZjT6rc8/edit?usp=sharing'
+
+# try:
+#     conn = GSheetsConnection(spreadsheet_url)
+#     # Test nawiązania połączenia
+#     df_test = conn.read()
+#     print("Połączenie z GSheets nawiązane pomyślnie.")
+#     print(df_test)  # Jeśli chcesz zobaczyć testowe dane
+# except Exception as e:
+#     print(f"Error while trying to connect to GSheets: {e}")
+
+
+# def load_data():
+#     # Wczytanie wszystkich danych z arkusza
+#     df = conn.read()
+#     return df
+
+
+# def save_user_selection(selected_dates, login):
+#     data = {
+#         "dates": ','.join([date.strftime('%Y-%m-%d') for date in selected_dates]),
+#         "login": login
+#     }
+#     conn.write(data)  # Zakładamy, że istnieje metoda do zapisu
 
 
 # Logika aplikacji
